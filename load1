@@ -1,0 +1,614 @@
+-- Brainrot Duplicator - Advanced Features
+-- Tabs système, Stats, Config, Auto-target, etc.
+
+local TweenService = game:GetService("TweenService")
+
+-- Fonction pour créer les tabs
+local function CreateTabSystem(MainFrame, ContentContainer, Components)
+    local TabsContainer = MainFrame:FindFirstChild("TabsContainer")
+    
+    -- Clear existing tabs
+    for _, child in TabsContainer:GetChildren() do
+        if not child:IsA("UIListLayout") then
+            child:Destroy()
+        end
+    end
+
+    local Tabs = {}
+    local TabContents = {}
+    local CurrentTab = 1
+
+    -- Tab data
+    local TabData = {
+        {Name = "🎯 STEAL", Icon = "🎯"},
+        {Name = "⚙️ CONFIG", Icon = "⚙️"},
+        {Name = "📊 STATS", Icon = "📊"},
+        {Name = "📋 LOGS", Icon = "📋"}
+    }
+
+    -- Create tabs
+    for i, data in ipairs(TabData) do
+        local Tab = Instance.new("TextButton")
+        Tab.Name = "Tab"..i
+        Tab.Size = UDim2.new(0.25, 0, 1, 0)
+        Tab.BackgroundColor3 = Color3.fromRGB(26, 26, 37)
+        Tab.BackgroundTransparency = i == 1 and 0 or 0
+        Tab.BorderSizePixel = 0
+        Tab.Text = data.Name
+        Tab.TextColor3 = i == 1 and Color3.fromRGB(138, 43, 226) or Color3.fromRGB(136, 136, 136)
+        Tab.Font = Enum.Font.GothamBold
+        Tab.TextSize = 13
+        Tab.Parent = TabsContainer
+
+        -- Active indicator
+        local Indicator = Instance.new("Frame")
+        Indicator.Name = "Indicator"
+        Indicator.Size = UDim2.new(1, 0, 0, 2)
+        Indicator.Position = UDim2.new(0, 0, 1, -2)
+        Indicator.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+        Indicator.BorderSizePixel = 0
+        Indicator.Visible = i == 1
+        Indicator.Parent = Tab
+
+        Tabs[i] = {Button = Tab, Indicator = Indicator}
+
+        -- Create tab content
+        local TabContent = Instance.new("Frame")
+        TabContent.Name = "TabContent"..i
+        TabContent.Size = UDim2.new(1, 0, 1, 0)
+        TabContent.BackgroundTransparency = 1
+        TabContent.Visible = i == 1
+        TabContent.Parent = ContentContainer
+
+        local TabLayout = Instance.new("UIListLayout")
+        TabLayout.Padding = UDim.new(0, 10)
+        TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        TabLayout.Parent = TabContent
+
+        TabContents[i] = TabContent
+
+        -- Tab click
+        Tab.MouseButton1Click:Connect(function()
+            for j, tabData in ipairs(Tabs) do
+                tabData.Button.TextColor3 = Color3.fromRGB(136, 136, 136)
+                tabData.Indicator.Visible = false
+                TabContents[j].Visible = false
+            end
+
+            Tab.TextColor3 = Color3.fromRGB(138, 43, 226)
+            Indicator.Visible = true
+            TabContent.Visible = true
+            CurrentTab = i
+        end)
+    end
+
+    return TabContents
+end
+
+-- Fonction pour créer une section
+local function CreateSection(parent, title, height)
+    local Section = Instance.new("Frame")
+    Section.Size = UDim2.new(1, 0, 0, height or 200)
+    Section.BackgroundColor3 = Color3.fromRGB(26, 26, 37)
+    Section.BorderSizePixel = 0
+    Section.Parent = parent
+
+    local SectionCorner = Instance.new("UICorner")
+    SectionCorner.CornerRadius = UDim.new(0, 8)
+    SectionCorner.Parent = Section
+
+    local SectionPadding = Instance.new("UIPadding")
+    SectionPadding.PaddingTop = UDim.new(0, 15)
+    SectionPadding.PaddingBottom = UDim.new(0, 15)
+    SectionPadding.PaddingLeft = UDim.new(0, 15)
+    SectionPadding.PaddingRight = UDim.new(0, 15)
+    SectionPadding.Parent = Section
+
+    local SectionLayout = Instance.new("UIListLayout")
+    SectionLayout.Padding = UDim.new(0, 10)
+    SectionLayout.Parent = Section
+
+    if title then
+        local SectionTitle = Instance.new("TextLabel")
+        SectionTitle.Size = UDim2.new(1, 0, 0, 20)
+        SectionTitle.BackgroundTransparency = 1
+        SectionTitle.Text = title
+        SectionTitle.TextColor3 = Color3.fromRGB(138, 43, 226)
+        SectionTitle.Font = Enum.Font.GothamBold
+        SectionTitle.TextSize = 14
+        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+        SectionTitle.Parent = Section
+    end
+
+    return Section, SectionLayout
+end
+
+-- Fonction pour créer un toggle
+local function CreateToggle(parent, text, default, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(26, 26, 37)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Parent = parent
+
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.Parent = ToggleFrame
+
+    local TogglePadding = Instance.new("UIPadding")
+    TogglePadding.PaddingLeft = UDim.new(0, 10)
+    TogglePadding.PaddingRight = UDim.new(0, 10)
+    TogglePadding.Parent = ToggleFrame
+
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Size = UDim2.new(1, -60, 1, 0)
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Text = text
+    ToggleLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.TextSize = 12
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleLabel.Parent = ToggleFrame
+
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Size = UDim2.new(0, 50, 0, 25)
+    ToggleButton.Position = UDim2.new(1, -50, 0.5, -12.5)
+    ToggleButton.BackgroundColor3 = default and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(60, 60, 65)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Text = ""
+    ToggleButton.Parent = ToggleFrame
+
+    local ToggleBtnCorner = Instance.new("UICorner")
+    ToggleBtnCorner.CornerRadius = UDim.new(1, 0)
+    ToggleBtnCorner.Parent = ToggleButton
+
+    local ToggleCircle = Instance.new("Frame")
+    ToggleCircle.Size = UDim2.new(0, 20, 0, 20)
+    ToggleCircle.Position = default and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
+    ToggleCircle.BackgroundColor3 = Color3.new(1, 1, 1)
+    ToggleCircle.BorderSizePixel = 0
+    ToggleCircle.Parent = ToggleButton
+
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = ToggleCircle
+
+    local enabled = default
+
+    ToggleButton.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        callback(enabled)
+
+        TweenService:Create(ToggleButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = enabled and Color3.fromRGB(76, 175, 80) or Color3.fromRGB(60, 60, 65)
+        }):Play()
+
+        TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {
+            Position = enabled and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
+        }):Play()
+    end)
+
+    return ToggleFrame
+end
+
+-- Fonction pour créer un slider
+local function CreateSlider(parent, text, min, max, default, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+    SliderFrame.BackgroundTransparency = 1
+    SliderFrame.Parent = parent
+
+    local SliderLabel = Instance.new("TextLabel")
+    SliderLabel.Size = UDim2.new(0.7, 0, 0, 20)
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.Text = text
+    SliderLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+    SliderLabel.Font = Enum.Font.Gotham
+    SliderLabel.TextSize = 12
+    SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    SliderLabel.Parent = SliderFrame
+
+    local ValueLabel = Instance.new("TextLabel")
+    ValueLabel.Size = UDim2.new(0.3, 0, 0, 20)
+    ValueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+    ValueLabel.BackgroundTransparency = 1
+    ValueLabel.Text = tostring(default)
+    ValueLabel.TextColor3 = Color3.fromRGB(138, 43, 226)
+    ValueLabel.Font = Enum.Font.GothamBold
+    ValueLabel.TextSize = 12
+    ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    ValueLabel.Parent = SliderFrame
+
+    local SliderBar = Instance.new("Frame")
+    SliderBar.Size = UDim2.new(1, 0, 0, 6)
+    SliderBar.Position = UDim2.new(0, 0, 0, 30)
+    SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    SliderBar.BorderSizePixel = 0
+    SliderBar.Parent = SliderFrame
+
+    local SliderCorner = Instance.new("UICorner")
+    SliderCorner.CornerRadius = UDim.new(1, 0)
+    SliderCorner.Parent = SliderBar
+
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    SliderFill.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+    SliderFill.BorderSizePixel = 0
+    SliderFill.Parent = SliderBar
+
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = SliderFill
+
+    local Dragging = false
+
+    SliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = true
+        end
+    end)
+
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = false
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relativePos = math.clamp(
+                (input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X,
+                0, 1
+            )
+            local value = math.floor(min + (max - min) * relativePos)
+
+            SliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+            ValueLabel.Text = tostring(value)
+            callback(value)
+        end
+    end)
+
+    return SliderFrame
+end
+
+-- Fonction pour créer une stat card
+local function CreateStatCard(parent, label, initialValue)
+    local StatCard = Instance.new("Frame")
+    StatCard.Size = UDim2.new(0.48, 0, 0, 80)
+    StatCard.BackgroundColor3 = Color3.fromRGB(26, 26, 37)
+    StatCard.BorderSizePixel = 0
+    StatCard.Parent = parent
+
+    local StatCorner = Instance.new("UICorner")
+    StatCorner.CornerRadius = UDim.new(0, 8)
+    StatCorner.Parent = StatCard
+
+    local StatValue = Instance.new("TextLabel")
+    StatValue.Size = UDim2.new(1, 0, 0, 40)
+    StatValue.Position = UDim2.new(0, 0, 0, 15)
+    StatValue.BackgroundTransparency = 1
+    StatValue.Text = initialValue
+    StatValue.TextColor3 = Color3.fromRGB(138, 43, 226)
+    StatValue.Font = Enum.Font.GothamBold
+    StatValue.TextSize = 28
+    StatValue.Parent = StatCard
+
+    local StatLabel = Instance.new("TextLabel")
+    StatLabel.Size = UDim2.new(1, 0, 0, 20)
+    StatLabel.Position = UDim2.new(0, 0, 1, -25)
+    StatLabel.BackgroundTransparency = 1
+    StatLabel.Text = label
+    StatLabel.TextColor3 = Color3.fromRGB(136, 136, 136)
+    StatLabel.Font = Enum.Font.Gotham
+    StatLabel.TextSize = 12
+    StatLabel.Parent = StatCard
+
+    return StatCard, StatValue
+end
+
+-- Fonction pour créer un dropdown
+local function CreateDropdown(parent, text, options, default, callback)
+    local DropdownFrame = Instance.new("Frame")
+    DropdownFrame.Size = UDim2.new(1, 0, 0, 35)
+    DropdownFrame.BackgroundTransparency = 1
+    DropdownFrame.Parent = parent
+
+    local DropdownLabel = Instance.new("TextLabel")
+    DropdownLabel.Size = UDim2.new(1, 0, 0, 15)
+    DropdownLabel.BackgroundTransparency = 1
+    DropdownLabel.Text = text
+    DropdownLabel.TextColor3 = Color3.fromRGB(170, 170, 170)
+    DropdownLabel.Font = Enum.Font.Gotham
+    DropdownLabel.TextSize = 12
+    DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DropdownLabel.Parent = DropdownFrame
+
+    local DropdownButton = Instance.new("TextButton")
+    DropdownButton.Size = UDim2.new(1, 0, 0, 35)
+    DropdownButton.Position = UDim2.new(0, 0, 0, 20)
+    DropdownButton.BackgroundColor3 = Color3.fromRGB(13, 13, 21)
+    DropdownButton.Text = default
+    DropdownButton.TextColor3 = Color3.new(1, 1, 1)
+    DropdownButton.Font = Enum.Font.Gotham
+    DropdownButton.TextSize = 13
+    DropdownButton.Parent = DropdownFrame
+
+    local DropdownCorner = Instance.new("UICorner")
+    DropdownCorner.CornerRadius = UDim.new(0, 6)
+    DropdownCorner.Parent = DropdownButton
+
+    local DropdownPadding = Instance.new("UIPadding")
+    DropdownPadding.PaddingLeft = UDim.new(0, 10)
+    DropdownPadding.Parent = DropdownButton
+
+    local Arrow = Instance.new("TextLabel")
+    Arrow.Size = UDim2.new(0, 20, 1, 0)
+    Arrow.Position = UDim2.new(1, -25, 0, 0)
+    Arrow.BackgroundTransparency = 1
+    Arrow.Text = "▼"
+    Arrow.TextColor3 = Color3.fromRGB(170, 170, 170)
+    Arrow.Font = Enum.Font.Gotham
+    Arrow.TextSize = 10
+    Arrow.Parent = DropdownButton
+
+    -- Dropdown menu
+    local DropdownMenu = Instance.new("Frame")
+    DropdownMenu.Size = UDim2.new(1, 0, 0, #options * 30)
+    DropdownMenu.Position = UDim2.new(0, 0, 0, 55)
+    DropdownMenu.BackgroundColor3 = Color3.fromRGB(13, 13, 21)
+    DropdownMenu.BorderSizePixel = 0
+    DropdownMenu.Visible = false
+    DropdownMenu.ZIndex = 10
+    DropdownMenu.Parent = DropdownFrame
+
+    local MenuCorner = Instance.new("UICorner")
+    MenuCorner.CornerRadius = UDim.new(0, 6)
+    MenuCorner.Parent = DropdownMenu
+
+    local MenuLayout = Instance.new("UIListLayout")
+    MenuLayout.Parent = DropdownMenu
+
+    for _, option in ipairs(options) do
+        local OptionButton = Instance.new("TextButton")
+        OptionButton.Size = UDim2.new(1, 0, 0, 30)
+        OptionButton.BackgroundColor3 = Color3.fromRGB(13, 13, 21)
+        OptionButton.BackgroundTransparency = 0
+        OptionButton.Text = option
+        OptionButton.TextColor3 = Color3.fromRGB(170, 170, 170)
+        OptionButton.Font = Enum.Font.Gotham
+        OptionButton.TextSize = 12
+        OptionButton.Parent = DropdownMenu
+
+        OptionButton.MouseEnter:Connect(function()
+            OptionButton.BackgroundColor3 = Color3.fromRGB(26, 26, 37)
+        end)
+
+        OptionButton.MouseLeave:Connect(function()
+            OptionButton.BackgroundColor3 = Color3.fromRGB(13, 13, 21)
+        end)
+
+        OptionButton.MouseButton1Click:Connect(function()
+            DropdownButton.Text = option
+            DropdownMenu.Visible = false
+            callback(option)
+        end)
+    end
+
+    DropdownButton.MouseButton1Click:Connect(function()
+        DropdownMenu.Visible = not DropdownMenu.Visible
+    end)
+
+    -- Adjust frame size
+    DropdownFrame.Size = UDim2.new(1, 0, 0, 55)
+
+    return DropdownFrame
+end
+
+-- Fonction principale pour setup les tabs avancées
+local function SetupAdvancedTabs(MainFrame, Components, Config, Stats)
+    local TabContents = CreateTabSystem(MainFrame, MainFrame:FindFirstChild("ContentContainer"), Components)
+
+    -- TAB 2: CONFIG
+    local ConfigTab = TabContents[2]
+
+    local ConfigSection1, _ = CreateSection(ConfigTab, "⚙️ DUPLICATION SETTINGS", 280)
+
+    CreateSlider(ConfigSection1, "Delay (ms)", 50, 1000, Config.Delay * 1000, function(value)
+        Config.Delay = value / 1000
+        Components.AddLog("Delay set to "..value.."ms", "info")
+    end)
+
+    CreateSlider(ConfigSection1, "Max Attempts", 1, 50, 10, function(value)
+        Components.AddLog("Max attempts set to "..value, "info")
+    end)
+
+    CreateDropdown(ConfigSection1, "Duplication Method", 
+        {"Race Condition", "Remote Spam", "Synchronizer", "Machine Exploit"},
+        "Race Condition",
+        function(method)
+            if method == "Race Condition" then
+                Config.Method = "Race"
+            elseif method == "Synchronizer" then
+                Config.Method = "Synchronizer"
+            end
+            Components.AddLog("Method changed to: "..method, "info")
+        end
+    )
+
+    local ConfigSection2, _ = CreateSection(ConfigTab, "🎯 ADVANCED OPTIONS", 200)
+    ConfigSection2.LayoutOrder = 2
+
+    CreateToggle(ConfigSection2, "Auto-Retry on Fail", Config.AutoRetry, function(value)
+        Config.AutoRetry = value
+        Components.AddLog("Auto-retry: "..tostring(value), "info")
+    end)
+
+    CreateToggle(ConfigSection2, "Anti-Detection Mode", Config.AntiDetect, function(value)
+        Config.AntiDetect = value
+        Components.AddLog("Anti-detection: "..tostring(value), "info")
+    end)
+
+    CreateToggle(ConfigSection2, "Auto-Sell After Dup", Config.AutoSell, function(value)
+        Config.AutoSell = value
+        Components.AddLog("Auto-sell: "..tostring(value), "info")
+    end)
+
+    CreateToggle(ConfigSection2, "Only Duplicate Mutations", Config.OnlyMutations, function(value)
+        Config.OnlyMutations = value
+        Components.AddLog("Only mutations: "..tostring(value), "info")
+    end)
+
+    -- TAB 3: STATS
+    local StatsTab = TabContents[3]
+
+    local StatsSection, _ = CreateSection(StatsTab, "📊 STATISTICS", 200)
+
+    local StatsContainer = Instance.new("Frame")
+    StatsContainer.Size = UDim2.new(1, 0, 0, 170)
+    StatsContainer.BackgroundTransparency = 1
+    StatsContainer.Parent = StatsSection
+
+    local StatsLayout = Instance.new("UIGridLayout")
+    StatsLayout.CellSize = UDim2.new(0.48, 0, 0, 80)
+    StatsLayout.CellPadding = UDim2.new(0.04, 0, 0, 10)
+    StatsLayout.Parent = StatsContainer
+
+    local _, TotalStealsLabel = CreateStatCard(StatsContainer, "Total Steals", "0")
+    local _, SuccessRateLabel = CreateStatCard(StatsContainer, "Success Rate", "0%")
+    local _, FailedLabel = CreateStatCard(StatsContainer, "Failed Attempts", "0")
+    local _, AvgTimeLabel = CreateStatCard(StatsContainer, "Avg Time", "0.0s")
+
+    -- Update stats in real-time
+    task.spawn(function()
+        while task.wait(1) do
+            TotalStealsLabel.Text = tostring(Stats.SuccessfulDups)
+            
+            local rate = Stats.TotalSteals > 0 and 
+                math.floor((Stats.SuccessfulDups / Stats.TotalSteals) * 100) or 0
+            SuccessRateLabel.Text = rate.."%"
+            
+            FailedLabel.Text = tostring(Stats.FailedDups)
+            
+            local elapsed = tick() - Stats.StartTime
+            local avgTime = Stats.TotalSteals > 0 and (elapsed / Stats.TotalSteals) or 0
+            AvgTimeLabel.Text = string.format("%.1fs", avgTime)
+        end
+    end)
+
+    local SessionSection, _ = CreateSection(StatsTab, "⏱️ SESSION INFO", 150)
+    SessionSection.LayoutOrder = 2
+
+    local SessionTime = Instance.new("TextLabel")
+    SessionTime.Size = UDim2.new(1, 0, 0, 50)
+    SessionTime.BackgroundTransparency = 1
+    SessionTime.Text = "00:00:00"
+    SessionTime.TextColor3 = Color3.fromRGB(138, 43, 226)
+    SessionTime.Font = Enum.Font.GothamBold
+    SessionTime.TextSize = 32
+    SessionTime.Parent = SessionSection
+
+    -- Session timer
+    task.spawn(function()
+        while task.wait(1) do
+            local elapsed = math.floor(tick() - Stats.StartTime)
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = elapsed % 60
+
+            SessionTime.Text = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+        end
+    end)
+
+    -- Reset button
+    local ResetButton = Instance.new("TextButton")
+    ResetButton.Size = UDim2.new(1, 0, 0, 40)
+    ResetButton.BackgroundColor3 = Color3.fromRGB(255, 68, 68)
+    ResetButton.Text = "🔄 RESET STATS"
+    ResetButton.TextColor3 = Color3.new(1, 1, 1)
+    ResetButton.Font = Enum.Font.GothamBold
+    ResetButton.TextSize = 13
+    ResetButton.Parent = SessionSection
+
+    local ResetCorner = Instance.new("UICorner")
+    ResetCorner.CornerRadius = UDim.new(0, 6)
+    ResetCorner.Parent = ResetButton
+
+    ResetButton.MouseButton1Click:Connect(function()
+        Stats.TotalSteals = 0
+        Stats.SuccessfulDups = 0
+        Stats.FailedDups = 0
+        Stats.StartTime = tick()
+        Components.AddLog("Stats reset!", "success")
+    end)
+
+    -- TAB 4: LOGS (déjà existant, on ajoute juste export)
+    local LogsTab = TabContents[4]
+
+    local LogsSection, _ = CreateSection(LogsTab, "📋 FULL LOGS", 400)
+
+    -- Copy console to logs tab
+    local FullLogs = Components.Console:Clone()
+    FullLogs.Size = UDim2.new(1, 0, 1, -70)
+    FullLogs.Parent = LogsSection
+
+    local ButtonsFrame = Instance.new("Frame")
+    ButtonsFrame.Size = UDim2.new(1, 0, 0, 40)
+    ButtonsFrame.BackgroundTransparency = 1
+    ButtonsFrame.Parent = LogsSection
+
+    local ButtonsLayout = Instance.new("UIListLayout")
+    ButtonsLayout.FillDirection = Enum.FillDirection.Horizontal
+    ButtonsLayout.Padding = UDim.new(0, 10)
+    ButtonsLayout.Parent = ButtonsFrame
+
+    local ExportButton = Instance.new("TextButton")
+    ExportButton.Size = UDim2.new(0.48, 0, 1, 0)
+    ExportButton.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+    ExportButton.Text = "💾 EXPORT"
+    ExportButton.TextColor3 = Color3.new(1, 1, 1)
+    ExportButton.Font = Enum.Font.GothamBold
+    ExportButton.TextSize = 13
+    ExportButton.Parent = ButtonsFrame
+
+    local ExportCorner = Instance.new("UICorner")
+    ExportCorner.CornerRadius = UDim.new(0, 6)
+    ExportCorner.Parent = ExportButton
+
+    local ClearButton = Instance.new("TextButton")
+    ClearButton.Size = UDim2.new(0.48, 0, 1, 0)
+    ClearButton.BackgroundColor3 = Color3.fromRGB(255, 68, 68)
+    ClearButton.Text = "🗑️ CLEAR"
+    ClearButton.TextColor3 = Color3.new(1, 1, 1)
+    ClearButton.Font = Enum.Font.GothamBold
+    ClearButton.TextSize = 13
+    ClearButton.Parent = ButtonsFrame
+
+    local ClearCorner = Instance.new("UICorner")
+    ClearCorner.CornerRadius = UDim.new(0, 6)
+    ClearCorner.Parent = ClearButton
+
+    ExportButton.MouseButton1Click:Connect(function()
+        Components.AddLog("Logs exported to clipboard!", "success")
+        -- Note: setclipboard() needs executor support
+        local logs = ""
+        for _, log in ipairs(Components.Console:GetChildren()) do
+            if log:IsA("TextLabel") then
+                logs = logs .. log.Text .. "\n"
+            end
+        end
+        if setclipboard then
+            setclipboard(logs)
+        end
+    end)
+
+    ClearButton.MouseButton1Click:Connect(function()
+        for _, log in ipairs(Components.Console:GetChildren()) do
+            if log:IsA("TextLabel") and not log:IsA("UIListLayout") and not log:IsA("UIPadding") then
+                log:Destroy()
+            end
+        end
+        Components.AddLog("Logs cleared", "info")
+    end)
+end
+
+return SetupAdvancedTabs
