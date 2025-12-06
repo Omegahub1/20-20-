@@ -1,1 +1,224 @@
+-- ===== CHARGEMENT DE RAYFIELD =====
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- ===== CRÉATION DE LA FENÊTRE =====
+local Window = Rayfield:CreateWindow({
+    Name = "Omega Hub | Dungeon Heroes",
+    LoadingTitle = "Omega Hub",
+    LoadingSubtitle = "by You",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "OmegaHub",
+        FileName = "Config"
+    },
+    Discord = { Enabled = false },
+    KeySystem = false
+})
+
+Rayfield:Notify({
+    Title = "Notification",
+    Content = "Script injected :)",
+    Duration = 5
+})
+
+-- ===== VARIABLES =====
+local player = game.Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local mobsFolder = Workspace:WaitForChild("Mobs")
+local remoteAttack = ReplicatedStorage.Systems.Combat.PlayerAttack
+
+local attackDelay = 0.2
+local tpHeight = 50
+local tpSpeed = 200
+local killAuraRange = 100
+local MAX_DISTANCE = 1000
+
+local KillAuraEnabled = false
+local AutoFarmEnabled = false
+local AutoInjectEnabled = false -- flag pour auto-inject
+
+-- ===== FONCTIONS =====
+local function getClosestMobs()
+    local char = player.Character
+    if not char then return {} end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return {} end
+    local mobs = {}
+    for _, mob in ipairs(mobsFolder:GetChildren()) do
+        if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - mob.HumanoidRootPart.Position).Magnitude
+            if dist <= killAuraRange then
+                table.insert(mobs, {mob = mob, dist = dist})
+            end
+        end
+    end
+    table.sort(mobs, function(a,b) return a.dist < b.dist end)
+    local result = {}
+    for _, m in ipairs(mobs) do table.insert(result, m.mob) end
+    return result
+end
+
+local function KillAuraLoop()
+    while KillAuraEnabled do
+        local targets = getClosestMobs()
+        if #targets > 0 then
+            remoteAttack:FireServer(targets)
+        end
+        task.wait(attackDelay)
+    end
+end
+
+local function getNearestMob(hrp)
+    local closest, closestDist = nil, MAX_DISTANCE
+    for _, mob in ipairs(mobsFolder:GetDescendants()) do
+        if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
+            if not mob:GetAttribute("Owner") and ((mob:GetAttribute("HP") or 1) > 0) then
+                local dist = (mob.HumanoidRootPart.Position - hrp.Position).Magnitude
+                if dist < closestDist then
+                    closest, closestDist = mob, dist
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function AutoFarmLoop()
+    while AutoFarmEnabled do
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            local mob = getNearestMob(hrp)
+            if mob then
+                local targetPos = mob.HumanoidRootPart.Position + Vector3.new(0, tpHeight, 2)
+                hrp.CFrame = CFrame.new(hrp.Position, mob.HumanoidRootPart.Position)
+                hrp.Velocity = (targetPos - hrp.Position).Unit * tpSpeed
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            else
+                hrp.Velocity = Vector3.zero
+            end
+        end
+        task.wait()
+    end
+end
+
+-- Fonction auto-injecteur
+local currentPlaceId = game.PlaceId
+local function AutoInjectLoop()
+    while AutoInjectEnabled do
+        task.wait(1)
+        if game.PlaceId ~= currentPlaceId then
+            currentPlaceId = game.PlaceId
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Omegahub1/20-20-/refs/heads/main/test20"))()
+        end
+    end
+end
+
+-- ===== CREATION DES TABS =====
+local MainTab = Window:CreateTab("Auto Farm")
+local RaidTab = Window:CreateTab("Raid")
+local MiscTab = Window:CreateTab("Misc")
+
+-- ===== MAIN TAB =====
+MainTab:CreateToggle({
+    Name = "Kill Aura",
+    CurrentValue = KillAuraEnabled,
+    Flag = "KillAura",
+    Callback = function(value)
+        KillAuraEnabled = value
+        if value then task.spawn(KillAuraLoop) end
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Attack Delay",
+    Range = {0.2,1},
+    Increment = 0.05,
+    Suffix = "s",
+    CurrentValue = attackDelay,
+    Flag = "AttackDelay",
+    Callback = function(value)
+        attackDelay = value
+    end
+})
+
+-- ===== RAID TAB =====
+RaidTab:CreateToggle({
+    Name = "Auto TP Above Mob",
+    CurrentValue = AutoFarmEnabled,
+    Flag = "AutoFarm",
+    Callback = function(value)
+        AutoFarmEnabled = value
+        if value then task.spawn(AutoFarmLoop) end
+    end
+})
+
+RaidTab:CreateSlider({
+    Name = "TP Height",
+    Range = {10,150},
+    Increment = 1,
+    Suffix = "y",
+    CurrentValue = tpHeight,
+    Flag = "TPHeight",
+    Callback = function(value)
+        tpHeight = value
+    end
+})
+
+RaidTab:CreateSlider({
+    Name = "TP Speed",
+    Range = {50,500},
+    Increment = 10,
+    Suffix = "Speed",
+    CurrentValue = tpSpeed,
+    Flag = "TPSpeed",
+    Callback = function(value)
+        tpSpeed = value
+    end
+})
+
+-- ===== MISC TAB =====
+MiscTab:CreateToggle({
+    Name = "Auto-Inject Script",
+    CurrentValue = AutoInjectEnabled,
+    Flag = "AutoInject",
+    Callback = function(value)
+        AutoInjectEnabled = value
+        if value then
+            task.spawn(AutoInjectLoop)
+        end
+    end
+})
+
+-- ===== CHARGEMENT DE LA CONFIG =====
+task.wait(0.1)
+Rayfield:LoadConfiguration()
+
+KillAuraEnabled = Rayfield:GetFlag("KillAura") or false
+AutoFarmEnabled = Rayfield:GetFlag("AutoFarm") or false
+attackDelay = Rayfield:GetFlag("AttackDelay") or 0.2
+tpHeight = Rayfield:GetFlag("TPHeight") or 50
+tpSpeed = Rayfield:GetFlag("TPSpeed") or 200
+AutoInjectEnabled = Rayfield:GetFlag("AutoInject") or false
+
+if KillAuraEnabled then task.spawn(KillAuraLoop) end
+if AutoFarmEnabled then task.spawn(AutoFarmLoop) end
+if AutoInjectEnabled then task.spawn(AutoInjectLoop) end
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if KillAuraEnabled then task.spawn(KillAuraLoop) end
+    if AutoFarmEnabled then task.spawn(AutoFarmLoop) end
+end)
+
+Rayfield:Notify({
+    Title = "Omega Hub",
+    Content = "Script Dungeon Heroes chargé et stable !",
+    Duration = 3
+})
 
