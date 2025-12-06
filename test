@@ -114,7 +114,7 @@ local function AutoInjectLoop()
         task.wait(1)
         if game.PlaceId ~= currentPlaceId then
             currentPlaceId = game.PlaceId
-            loadstring(game:HttpGet("URL_DE_TON_SCRIPT_RAYFIELD"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Omegahub1/20-20-/refs/heads/main/test"))()
         end
     end
 end
