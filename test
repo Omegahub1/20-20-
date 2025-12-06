@@ -162,7 +162,7 @@ RaidTab:CreateSlider({
     Name = "TP Height",
     Range = {10,150},
     Increment = 1,
-    Suffix = "studs",
+    Suffix = "y",
     CurrentValue = tpHeight,
     Flag = "TPHeight",
     Callback = function(value)
@@ -174,7 +174,7 @@ RaidTab:CreateSlider({
     Name = "TP Speed",
     Range = {50,500},
     Increment = 10,
-    Suffix = "studs/s",
+    Suffix = "Speed",
     CurrentValue = tpSpeed,
     Flag = "TPSpeed",
     Callback = function(value)
