@@ -22,18 +22,17 @@ local Tabs = {
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 -- =========================================================
--- AUTO EVENTPARTS TP (WELD TO HEAD - AUTO COLLECT)
+-- AUTO EVENTPARTS TP (MODELS ABOVE PLAYER HEAD)
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
 local AutoEventTP = false
-local EventFolder = nil
-local LoopConnection = nil
-local WeldedModels = {}
+local EventFolderConnection = nil
+local EventChildConnection = nil
+local ProcessingEvent = {}
 
 -- =========================================================
 -- UTIL
@@ -44,105 +43,103 @@ local function getHRP()
     return char:FindFirstChild("HumanoidRootPart")
 end
 
-local function getPrimary(model)
-    if model.PrimaryPart then
-        return model.PrimaryPart
-    end
-    for _, v in ipairs(model:GetDescendants()) do
-        if v:IsA("BasePart") then
-            model.PrimaryPart = v
-            return v
-        end
-    end
-    return nil
-end
-
 -- =========================================================
--- WELD MODEL TO PLAYER
+-- TP MODEL ABOVE PLAYER HEAD
 
-local function weldModelToPlayer(model)
-    if WeldedModels[model] then return end
+local function tpModelAboveHead(model)
+    if ProcessingEvent[model] then return end
+    ProcessingEvent[model] = true
 
     local hrp = getHRP()
     if not hrp then return end
 
-    local part = getPrimary(model)
-    if not part then return end
+    -- 🔼 hauteur au-dessus de la tête (ajustable)
+    local HEIGHT_OFFSET = 6
 
-    -- Nettoyage
-    for _, v in ipairs(model:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.Anchored = false
-            v.CanCollide = false
+    local targetCF = hrp.CFrame * CFrame.new(0, HEIGHT_OFFSET, 0)
+
+    if model:IsA("Model") then
+        if model.PrimaryPart then
+            model:SetPrimaryPartCFrame(targetCF)
+        else
+            model:PivotTo(targetCF)
         end
     end
 
-    -- Position juste au-dessus de la tête
-    model:PivotTo(hrp.CFrame * CFrame.new(0, 3, 0))
+    print("[EVENT] Model TP au-dessus de ta tête :", model.Name)
 
-    -- Weld
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = hrp
-    weld.Part1 = part
-    weld.Parent = hrp
-
-    WeldedModels[model] = weld
-    print("[EVENT] Model weld sur toi :", model.Name)
+    task.delay(1, function()
+        ProcessingEvent[model] = nil
+    end)
 end
 
 -- =========================================================
--- SCAN EVENTPARTS
+-- SCAN / WATCHER
 
-local function scanEventParts()
-    if not AutoEventTP or not EventFolder then return end
-
-    for _, model in ipairs(EventFolder:GetChildren()) do
+local function scanEventParts(folder)
+    for _, model in ipairs(folder:GetChildren()) do
         if model:IsA("Model") then
-            weldModelToPlayer(model)
+            tpModelAboveHead(model)
         end
     end
 end
 
--- =========================================================
--- START / STOP
+local function connectEventParts(folder)
+    if EventChildConnection then
+        EventChildConnection:Disconnect()
+    end
+
+    EventChildConnection = folder.ChildAdded:Connect(function(child)
+        if AutoEventTP and child:IsA("Model") then
+            print("[EVENT] Nouveau model détecté :", child.Name)
+            tpModelAboveHead(child)
+        end
+    end)
+end
 
 local function startEventWatcher()
-    if LoopConnection then return end
+    if EventFolderConnection then return end
 
-    EventFolder = Workspace:FindFirstChild("EventParts")
-    if not EventFolder then
-        warn("[EVENT] EventParts introuvable")
-        return
+    EventFolderConnection = Workspace.ChildAdded:Connect(function(child)
+        if child.Name == "EventParts" and child:IsA("Folder") then
+            print("[EVENT] EventParts détecté")
+            scanEventParts(child)
+            connectEventParts(child)
+        end
+    end)
+
+    local existing = Workspace:FindFirstChild("EventParts")
+    if existing and existing:IsA("Folder") then
+        scanEventParts(existing)
+        connectEventParts(existing)
     end
-
-    LoopConnection = RunService.Heartbeat:Connect(scanEventParts)
-    print("[EVENT] Auto collect (weld) activé")
 end
 
 local function stopEventWatcher()
-    if LoopConnection then
-        LoopConnection:Disconnect()
-        LoopConnection = nil
+    if EventFolderConnection then
+        EventFolderConnection:Disconnect()
+        EventFolderConnection = nil
     end
-
-    for model, weld in pairs(WeldedModels) do
-        if weld then weld:Destroy() end
+    if EventChildConnection then
+        EventChildConnection:Disconnect()
+        EventChildConnection = nil
     end
-
-    table.clear(WeldedModels)
+    table.clear(ProcessingEvent)
 end
 
 -- =========================================================
 -- UI
 
 Tabs.Main:AddToggle("AutoEventTP", {
-    Title = "Auto Collect EventParts",
+    Title = "EventParts → au-dessus de ma tête",
     Default = false,
     Callback = function(v)
         AutoEventTP = v
         if v then
+            print("[EVENT] Auto TP ON (au-dessus tête)")
             startEventWatcher()
         else
+            print("[EVENT] Auto TP OFF")
             stopEventWatcher()
         end
     end
