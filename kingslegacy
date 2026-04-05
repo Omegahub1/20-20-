@@ -1,0 +1,62 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local effectsFolder = workspace:WaitForChild("Effects")
+
+local function getPrompt(model)
+    for _, v in pairs(model:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            return v
+        end
+    end
+end
+
+local function collectEgg(model)
+    local character = player.Character
+    if not character then return end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    root.CFrame = model:GetPivot()
+    task.wait(0.2)
+
+    local prompt = getPrompt(model)
+    if prompt then
+        fireproximityprompt(prompt)
+    end
+end
+
+local function findEgg()
+    for _, obj in pairs(effectsFolder:GetChildren()) do
+        if obj:IsA("Model") and string.find(obj.Name, "Egg") then
+            return obj
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+
+        local egg = findEgg()
+
+        if not egg then
+            local newEgg
+
+            repeat
+                newEgg = effectsFolder.ChildAdded:Wait()
+            until newEgg:IsA("Model") and string.find(newEgg.Name, "Egg")
+
+            collectEgg(newEgg)
+
+        else
+            for _, obj in pairs(effectsFolder:GetChildren()) do
+                if obj:IsA("Model") and string.find(obj.Name, "Egg") then
+                    collectEgg(obj)
+                end
+            end
+        end
+
+        task.wait(0.3)
+    end
+end)
